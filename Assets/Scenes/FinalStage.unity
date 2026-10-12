@@ -1449,7 +1449,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1730456691}
-        m_TargetAssemblyTypeName: Chanthink_MainManager, Assembly-CSharp
+        m_TargetAssemblyTypeName: MainManager, Assembly-CSharp
         m_MethodName: EndGame
         m_Mode: 1
         m_Arguments:
@@ -1582,7 +1582,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1730456692}
-        m_TargetAssemblyTypeName: Chanthink_MainLoad, Assembly-CSharp
+        m_TargetAssemblyTypeName: MainLoad, Assembly-CSharp
         m_MethodName: LoadMainScene
         m_Mode: 1
         m_Arguments:
