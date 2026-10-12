@@ -2,6 +2,8 @@
 
 > 몸과 혼을 번갈아 조종해 방을 빠져나가는 3D 퍼즐 게임
 
+**▶ [브라우저에서 플레이하기](https://cyan8041.github.io/Soul-Escape/)**
+
 이전에 만들었던 게임 **Soul Escape**를 **Unity CLI MCP**와 **Claude**로 다시 손보고 있는 프로젝트입니다. 원본의 몸·혼 전환 규칙은 그대로 두고, 버그를 고치고 새 기믹과 스테이지를 더해 가고 있습니다.
 
 ![Stage7 전경](docs/images/Stage7_overview.png)
