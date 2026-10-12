@@ -29,7 +29,7 @@ public class StageSelectMenu : MonoBehaviour
         new StageEntry { sceneName = "Stage9",      title = "9",      subtitle = "Soul Freeze" },
         new StageEntry { sceneName = "Stage10",     title = "10",     subtitle = "Soul Leash" },
         new StageEntry { sceneName = "Stage11",     title = "11",     subtitle = "Soul Record" },
-        new StageEntry { sceneName = "ButtonStage", title = "Button", subtitle = "One Step Each" },
+        new StageEntry { sceneName = "ButtonStage", title = "Button", subtitle = "One Step" },
         new StageEntry { sceneName = "FinalStage",  title = "Final",  subtitle = "Last Escape" },
     };
 
@@ -41,6 +41,7 @@ public class StageSelectMenu : MonoBehaviour
     static bool openOnLoad;
 
     GameObject panel;
+    readonly List<GameObject> menuItems = new List<GameObject>(); // 선택창이 열리면 숨길 메인 화면 요소
 
     void Start()
     {
@@ -54,7 +55,7 @@ public class StageSelectMenu : MonoBehaviour
 
         // 메인 화면에 Stage Select 버튼 추가 (Start와 End 사이)
         RectTransform startRect = (RectTransform)startButton.transform;
-        Button selectButton = CloneButton(startButton, startButton.transform.parent, "Stage Select Button", "Stage Select");
+        Button selectButton = CloneButton(startButton, startButton.transform.parent, "Stage Select Button", 0, "Stage Select");
         RectTransform selectRect = (RectTransform)selectButton.transform;
         float gap = endButton != null
             ? startRect.anchoredPosition.y - ((RectTransform)endButton.transform).anchoredPosition.y
@@ -75,8 +76,14 @@ public class StageSelectMenu : MonoBehaviour
             }
         }
 
+        menuItems.Add(startButton);
+        menuItems.Add(selectButton.gameObject);
+        if (endButton != null) menuItems.Add(endButton);
+        GameObject title = GameObject.Find("Title");
+        if (title != null) menuItems.Add(title);
+
         panel = BuildPanel(startButton);
-        panel.SetActive(openOnLoad);
+        SetPanelOpen(openOnLoad);
         openOnLoad = false;
     }
 
@@ -86,8 +93,16 @@ public class StageSelectMenu : MonoBehaviour
             Close();
     }
 
-    public void Open() { if (panel != null) panel.SetActive(true); }
-    public void Close() { if (panel != null) panel.SetActive(false); }
+    public void Open() { SetPanelOpen(true); }
+    public void Close() { SetPanelOpen(false); }
+
+    void SetPanelOpen(bool open)
+    {
+        if (panel == null) return;
+        panel.SetActive(open);
+        foreach (GameObject item in menuItems)
+            item.SetActive(!open);
+    }
 
     GameObject BuildPanel(GameObject buttonTemplate)
     {
@@ -100,7 +115,7 @@ public class StageSelectMenu : MonoBehaviour
         rootRect.anchorMax = Vector2.one;
         rootRect.offsetMin = Vector2.zero;
         rootRect.offsetMax = Vector2.zero;
-        root.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.1f, 0.94f);
+        root.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.1f, 1f);
 
         TMP_Text templateLabel = buttonTemplate.GetComponentInChildren<TMP_Text>();
 
@@ -131,7 +146,7 @@ public class StageSelectMenu : MonoBehaviour
         foreach (StageEntry stage in stages)
         {
             string sceneName = stage.sceneName;
-            Button button = CloneButton(buttonTemplate, grid.transform, sceneName + " Button",
+            Button button = CloneButton(buttonTemplate, grid.transform, sceneName + " Button", 24,
                 $"<size=150%>{stage.title}</size>\n<size=70%>{stage.subtitle}</size>");
             if (Application.CanStreamedLevelBeLoaded(sceneName))
                 button.onClick.AddListener(() => SceneManager.LoadScene(sceneName));
@@ -140,7 +155,7 @@ public class StageSelectMenu : MonoBehaviour
         }
 
         // 뒤로가기
-        Button back = CloneButton(buttonTemplate, root.transform, "Back Button", "Back");
+        Button back = CloneButton(buttonTemplate, root.transform, "Back Button", 0, "Back");
         RectTransform backRect = (RectTransform)back.transform;
         backRect.anchorMin = backRect.anchorMax = new Vector2(0.5f, 0);
         backRect.pivot = new Vector2(0.5f, 0);
@@ -159,7 +174,8 @@ public class StageSelectMenu : MonoBehaviour
         return root;
     }
 
-    static Button CloneButton(GameObject template, Transform parent, string name, string label)
+    // fontSize가 0이면 원본 크기를 최대로 자동 맞춤, 아니면 고정 크기 (격자 버튼끼리 글자 크기를 맞추기 위해)
+    static Button CloneButton(GameObject template, Transform parent, string name, float fontSize, string label)
     {
         GameObject clone = Instantiate(template, parent, false);
         clone.name = name;
@@ -169,9 +185,19 @@ public class StageSelectMenu : MonoBehaviour
         if (text != null)
         {
             text.text = label;
-            text.enableAutoSizing = true;
-            text.fontSizeMin = 12;
-            text.fontSizeMax = text.fontSize;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.margin = new Vector4(8, 4, 8, 4);
+            if (fontSize > 0)
+            {
+                text.enableAutoSizing = false;
+                text.fontSize = fontSize;
+            }
+            else
+            {
+                text.enableAutoSizing = true;
+                text.fontSizeMin = 12;
+                text.fontSizeMax = text.fontSize;
+            }
         }
         return button;
     }
