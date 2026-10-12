@@ -1,11 +1,14 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// 메인 화면의 스테이지 선택창. Main 씬의 Canvas에 붙어 있고,
-// 기존 Start 버튼을 복제해서 같은 모양의 버튼을 만든다.
+// 스테이지 선택창.
+// 메인 화면: Main 씬의 Canvas에 붙어 있고, 기존 Start 버튼을 복제해서 같은 모양의 버튼을 만든다.
+// 게임 중: Esc를 누르면 게임을 멈추고 같은 선택창을 오버레이로 띄운다.
 public class StageSelectMenu : MonoBehaviour
 {
     [System.Serializable]
@@ -37,14 +40,23 @@ public class StageSelectMenu : MonoBehaviour
     public Vector2 cellSize = new Vector2(160, 100);
     public Vector2 spacing = new Vector2(16, 16);
 
-    // 스테이지에서 Esc로 돌아왔을 때 선택창을 바로 연다
-    static bool openOnLoad;
+    // 게임 중 오버레이로 만들어졌는지 (Esc로 생성)
+    bool inGame;
 
     GameObject panel;
     readonly List<GameObject> menuItems = new List<GameObject>(); // 선택창이 열리면 숨길 메인 화면 요소
 
     void Start()
     {
+        if (inGame)
+        {
+            GameObject template = CreateButtonTemplate();
+            panel = BuildPanel(template);
+            Destroy(template);
+            SetPanelOpen(true);
+            return;
+        }
+
         GameObject startButton = GameObject.Find("Start Button");
         GameObject endButton = GameObject.Find("End Button");
         if (startButton == null)
@@ -83,14 +95,14 @@ public class StageSelectMenu : MonoBehaviour
         if (title != null) menuItems.Add(title);
 
         panel = BuildPanel(startButton);
-        SetPanelOpen(openOnLoad);
-        openOnLoad = false;
+        SetPanelOpen(false);
     }
 
     void Update()
     {
-        if (panel != null && panel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
-            Close();
+        if (panel == null || !Input.GetKeyDown(KeyCode.Escape)) return;
+        if (panel.activeSelf) Close();
+        else if (inGame) Open();
     }
 
     public void Open() { SetPanelOpen(true); }
@@ -100,6 +112,7 @@ public class StageSelectMenu : MonoBehaviour
     {
         if (panel == null) return;
         panel.SetActive(open);
+        if (inGame) Time.timeScale = open ? 0f : 1f; // 선택창이 열린 동안 게임 일시정지
         foreach (GameObject item in menuItems)
             item.SetActive(!open);
     }
@@ -154,15 +167,26 @@ public class StageSelectMenu : MonoBehaviour
                 button.interactable = false; // Build Settings에 없는 씬
         }
 
-        // 뒤로가기
-        Button back = CloneButton(buttonTemplate, root.transform, "Back Button", 0, "Back");
+        // 뒤로가기 (게임 중에는 계속하기 + 메인 메뉴)
+        Button back = CloneButton(buttonTemplate, root.transform, "Back Button", 0, inGame ? "Resume" : "Back");
         RectTransform backRect = (RectTransform)back.transform;
         backRect.anchorMin = backRect.anchorMax = new Vector2(0.5f, 0);
         backRect.pivot = new Vector2(0.5f, 0);
         backRect.anchoredPosition = new Vector2(0, 40);
         back.onClick.AddListener(Close);
 
-        TMP_Text hint = CreateText(root.transform, "Hint", "Esc: back to menu", 24, templateLabel);
+        if (inGame)
+        {
+            backRect.anchoredPosition = new Vector2(-backRect.sizeDelta.x * 0.5f - 12, 40);
+            Button main = CloneButton(buttonTemplate, root.transform, "Main Menu Button", 0, "Main Menu");
+            RectTransform mainRect = (RectTransform)main.transform;
+            mainRect.anchorMin = mainRect.anchorMax = new Vector2(0.5f, 0);
+            mainRect.pivot = new Vector2(0.5f, 0);
+            mainRect.anchoredPosition = new Vector2(mainRect.sizeDelta.x * 0.5f + 12, 40);
+            main.onClick.AddListener(() => SceneManager.LoadScene("Main"));
+        }
+
+        TMP_Text hint = CreateText(root.transform, "Hint", inGame ? "Esc: resume" : "Esc: back to menu", 24, templateLabel);
         RectTransform hintRect = hint.rectTransform;
         hintRect.anchorMin = hintRect.anchorMax = new Vector2(1, 0);
         hintRect.pivot = new Vector2(1, 0);
@@ -172,6 +196,28 @@ public class StageSelectMenu : MonoBehaviour
         hint.color = new Color(1, 1, 1, 0.6f);
 
         return root;
+    }
+
+    // 게임 씬에는 복제할 버튼이 없어서 흰 버튼을 직접 만든다
+    GameObject CreateButtonTemplate()
+    {
+        GameObject go = new GameObject("Button Template", typeof(RectTransform), typeof(Image), typeof(Button));
+        go.transform.SetParent(transform, false);
+        ((RectTransform)go.transform).sizeDelta = new Vector2(200, 80);
+        go.GetComponent<Image>().color = new Color(0.92f, 0.92f, 0.92f);
+
+        GameObject label = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+        label.transform.SetParent(go.transform, false);
+        RectTransform labelRect = (RectTransform)label.transform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        TextMeshProUGUI text = label.GetComponent<TextMeshProUGUI>();
+        text.fontSize = 35;
+        text.color = new Color(0.2f, 0.2f, 0.2f);
+        text.alignment = TextAlignmentOptions.Center;
+        return go;
     }
 
     // fontSize가 0이면 원본 크기를 최대로 자동 맞춤, 아니면 고정 크기 (격자 버튼끼리 글자 크기를 맞추기 위해)
@@ -218,7 +264,7 @@ public class StageSelectMenu : MonoBehaviour
         return text;
     }
 
-    // 스테이지 안에서 Esc를 누르면 메인으로 돌아와 선택창을 연다
+    // 스테이지 안에서 처음 Esc를 누르면 선택창 오버레이를 만든다 (이후 열고 닫기는 오버레이가 처리)
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void InstallEscapeListener()
     {
@@ -226,16 +272,35 @@ public class StageSelectMenu : MonoBehaviour
         listener.hideFlags = HideFlags.HideInHierarchy;
         DontDestroyOnLoad(listener);
         listener.AddComponent<EscapeToStageSelect>();
+        SceneManager.sceneLoaded += (scene, mode) => Time.timeScale = 1f; // 일시정지 중 씬을 옮겨도 풀리도록
     }
 
     class EscapeToStageSelect : MonoBehaviour
     {
+        StageSelectMenu overlay;
+
         void Update()
         {
-            if (!Input.GetKeyDown(KeyCode.Escape)) return;
+            if (overlay != null || !Input.GetKeyDown(KeyCode.Escape)) return;
             if (SceneManager.GetActiveScene().name == "Main") return;
-            openOnLoad = true;
-            SceneManager.LoadScene("Main");
+            overlay = CreateOverlay();
         }
+    }
+
+    static StageSelectMenu CreateOverlay()
+    {
+        GameObject canvasObject = new GameObject("Stage Select Overlay",
+            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 100; // 스테이지의 다른 UI보다 위에
+
+        // 버튼 클릭을 받으려면 EventSystem이 필요하다
+        if (FindAnyObjectByType<EventSystem>() == null)
+            new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+
+        StageSelectMenu menu = canvasObject.AddComponent<StageSelectMenu>();
+        menu.inGame = true;
+        return menu;
     }
 }
