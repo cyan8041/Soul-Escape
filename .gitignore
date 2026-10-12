@@ -43,3 +43,9 @@ crashlytics-build.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Build outputs and local screenshots
+/WebGL/
+/WebGLBuild/
+/Screenshots/
+*.zip
